@@ -28,6 +28,7 @@ import gc
 import json
 from pathlib import Path
 from typing import Dict, Iterable, Optional, Tuple
+import time
 
 import numpy as np
 import torch
@@ -348,7 +349,8 @@ def run_epoch(
     total_samples = 0
     total_batches = 0
     total_shards = 0
-
+    start_time = time.time()
+    
     grad_context = torch.enable_grad() if train else torch.no_grad()
 
     with grad_context:
@@ -403,6 +405,20 @@ def run_epoch(
                 total_batches += 1
                 shard_batches += 1
 
+                if train and total_batches % 100 == 0:
+                    elapsed = time.time() - start_time
+                    eta = elapsed / total_batches * (
+                        len(list(shard_paths)) * (
+                            (shard_samples + batch_size - 1) // batch_size
+                        ) - total_batches
+                    )
+                    print(
+                        f"  Batch {total_batches} | "
+                        f"Elapsed: {elapsed/60:.1f} min | "
+                        f"ETA: {max(0, eta)/60:.1f} min",
+                        flush=True,
+                    )
+                
                 del x_t, y_t1, observed_t1, objectives
 
             total_shards += 1
